@@ -1,0 +1,12 @@
+{
+  "name": "azm365-dev-tools",
+  "private": true,
+  "description": "Pinned local emulators. `npm ci` then `npm run azurite` (Blob emulator on 127.0.0.1:10000).",
+  "license": "MIT",
+  "scripts": {
+    "azurite": "azurite-blob --silent --loose --skipApiVersionCheck --location .azurite --blobHost 127.0.0.1 --blobPort 10000"
+  },
+  "devDependencies": {
+    "azurite": "3.37.0"
+  }
+}

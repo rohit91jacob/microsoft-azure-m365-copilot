@@ -1,0 +1,1 @@
+[["urlkey","timestamp","original","mimetype","statuscode","digest","length"],["https://prices.azure.com/api/retail/prices?$filter=armRegionName eq 'spaincentral'","20251020120000","https://prices.azure.com/api/retail/prices?$filter=armRegionName eq 'spaincentral'","application/json","200","SIMDIGEST20251020120000","1000"]]
