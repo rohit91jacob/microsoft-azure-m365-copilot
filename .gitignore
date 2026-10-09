@@ -1,0 +1,66 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Lake, warehouse and dbt state (never commit data)
+data/
+dbt/target/
+dbt/logs/
+dbt/dbt_packages/
+dbt/.user.yml
+*.duckdb
+*.duckdb.wal
+
+# Azurite emulator state
+__azurite_db_*.json
+__blobstorage__/
+__queuestorage__/
+.azurite/
+
+# Azure Functions local state and packaging
+functions/local.settings.json
+functions/.python_packages/
+functions/bundle/
+functions/wheels/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+override.tf
+override.tf.json
+*.auto.tfvars
+terraform.tfvars
+infra/environments/*.tfvars
+infra/environments/*.tfbackend
+.terraform.lock.hcl.bak
+
+# Local config / secrets
+.env
+.env.*
+!.env.example
+
+# Editors / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Generated results site (published by refresh.yml)
+site/
+node_modules/

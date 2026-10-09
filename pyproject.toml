@@ -1,0 +1,103 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "azm365"
+version = "0.1.0"
+description = "Azure FinOps prices, Microsoft 365 / Copilot roadmap and Microsoft OSS engineering analytics on an Azure-shaped medallion lake (Functions -> ADLS Gen2 -> dbt), emulated locally."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.12,<3.13"
+authors = [{ name = "rohit91jacob" }]
+keywords = ["azure", "finops", "microsoft-365", "copilot", "roadmap", "dbt", "duckdb", "adls", "azure-functions"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Database",
+  "Topic :: Scientific/Engineering :: Information Analysis",
+]
+dependencies = [
+  "requests>=2.32,<3",
+  "pyarrow>=21",
+  "duckdb==1.5.6",
+  "dbt-core>=1.11,<1.12",
+  "dbt-duckdb==1.11.0",
+  "azure-storage-blob>=12.26,<13",
+  "azure-identity>=1.23,<2",
+  "pyyaml>=6",
+]
+
+[project.optional-dependencies]
+functions = ["azure-functions>=1.23,<2"]
+
+[project.scripts]
+azm365 = "azm365.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/rohit91jacob/microsoft-azure-m365-copilot"
+
+[dependency-groups]
+dev = [
+  "azure-functions>=1.23,<2",
+  "pytest>=9,<10",
+  "pytest-cov>=7,<8",
+  "responses>=0.25,<1",
+  "ruff>=0.16,<0.17",
+  "pre-commit>=4,<5",
+]
+# Fabric Warehouse adapter: only used to *compile* the dbt project against T-SQL in CI.
+fabric = ["dbt-fabric>=1.11,<1.12"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/azm365"]
+
+[tool.uv]
+default-groups = ["dev"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests", "scripts", "functions"]
+extend-exclude = ["dbt/target", "dbt/dbt_packages", "dbt/logs", "data", "site"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "C4", "RUF", "PTH", "N", "S", "T20", "PL", "TRY", "PIE", "RET"]
+ignore = [
+  "PLR0913", # extractor entrypoints take explicit keyword options
+  "PLR2004", # magic values are fine in data rules and tests
+  "TRY003",  # long exception messages carry useful context
+  "S608",    # SQL is built from validated identifiers only (see quality.py)
+  "E501",    # ruff format owns line length; long SQL/strings are left intact
+  "RET504",  # assign-then-return keeps transforms readable
+  "TRY400",  # expected failures (DQ gate, dbt) are logged without a traceback on purpose
+  "PLC0415", # heavy/optional SDKs (azure, dbt) are imported lazily where they are used
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "PLR2004", "S603", "S607", "S105", "S106", "PLC0415"]
+"scripts/**" = ["T201", "S311", "PLR0911"]
+"src/azm365/report.py" = ["PLR0915"]
+"src/azm365/cli.py" = ["T201", "PLR0915", "PLC0415"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["azm365"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers -m 'not network'"
+markers = [
+  "e2e: end-to-end pipeline runs on the committed synthetic fixtures (extract -> silver -> DQ -> dbt -> report)",
+  "azurite: needs an Azurite blob endpoint (AZM365_AZURITE_CONNECTION_STRING or 127.0.0.1:10000)",
+  "network: calls the live public APIs (opt-in with -m network)",
+]
+filterwarnings = ["ignore::DeprecationWarning:dbt.*", "ignore::DeprecationWarning:mashumaro.*"]
+
+[tool.coverage.run]
+source = ["azm365"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true

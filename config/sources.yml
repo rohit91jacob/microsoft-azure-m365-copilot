@@ -1,0 +1,75 @@
+# Source configuration. Everything here is public and credential-free; GITHUB_TOKEN is optional
+# and only raises the GitHub rate limit (60 -> 5,000 requests/hour).
+
+azure_prices:
+  # https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices
+  endpoint: https://prices.azure.com/api/retail/prices
+  api_version: "2023-01-01-preview"
+  currency: USD
+  # Each scope is one or more OData filters fetched to exhaustion (NextPageLink), unless
+  # max_pages is set. A scope with max_pages is marked incomplete: its snapshots are only ever
+  # compared key-by-key, never used to infer that a meter disappeared.
+  scopes:
+    - name: vm_popular_skus
+      description: Six widely used general-purpose, memory, compute, burstable and GPU VM sizes, every region and price type.
+      filters:
+        - "serviceName eq 'Virtual Machines' and armSkuName eq 'Standard_D2s_v5'"
+        - "serviceName eq 'Virtual Machines' and armSkuName eq 'Standard_D4s_v5'"
+        - "serviceName eq 'Virtual Machines' and armSkuName eq 'Standard_E4s_v5'"
+        - "serviceName eq 'Virtual Machines' and armSkuName eq 'Standard_F4s_v2'"
+        - "serviceName eq 'Virtual Machines' and armSkuName eq 'Standard_B2s'"
+        - "serviceName eq 'Virtual Machines' and armSkuName eq 'Standard_NC24ads_A100_v4'"
+    - name: blob_storage
+      description: General Block Blob v2 (the meters behind ADLS Gen2 / Blob capacity and operations).
+      filters:
+        - "serviceName eq 'Storage' and productName eq 'General Block Blob v2'"
+    - name: functions
+      description: Azure Functions (Consumption, Flex Consumption, Premium).
+      filters:
+        - "serviceName eq 'Functions'"
+    - name: foundry_models
+      description: Azure AI Foundry models (Azure OpenAI and partner models), the meters behind Copilot-style workloads.
+      filters:
+        - "serviceName eq 'Foundry Models'"
+    - name: region_spaincentral_page1
+      description: >
+        First page (1,000 items) of the whole Spain Central catalogue. The Internet Archive holds
+        snapshots of exactly this request back to 2024, so it gives real price history; live runs
+        fetch the same single page so the two are comparable key by key.
+      filters:
+        - "armRegionName eq 'spaincentral'"
+      max_pages: 1
+      api_version: null
+
+m365_roadmap:
+  # The JSON behind https://www.microsoft.com/microsoft-365/roadmap (the RSS feed at
+  # /releasecommunications/api/v2/m365/rss carries the same items).
+  endpoint: https://www.microsoft.com/releasecommunications/api/v1/m365
+  rss: https://www.microsoft.com/releasecommunications/api/v2/m365/rss
+  min_items: 500
+
+github:
+  api: https://api.github.com
+  repos:
+    - microsoft/vscode
+    - microsoft/semantic-kernel
+    - microsoft/autogen
+    - microsoft/TypeScript
+  pull_pages: 3 # 100 most recently updated closed PRs per page
+  release_pages: 1
+
+wayback:
+  # Real historical snapshots of the same public endpoints, captured by the Internet Archive.
+  cdx: https://web.archive.org/cdx/search/cdx
+  replay: https://web.archive.org/web
+  targets:
+    - source: m365_roadmap
+      dataset: features
+      scope: all
+      url: https://www.microsoft.com/releasecommunications/api/v1/m365
+      from: "2025"
+    - source: azure_prices
+      dataset: retail_prices
+      scope: region_spaincentral_page1
+      url: "https://prices.azure.com/api/retail/prices?$filter=armRegionName eq 'spaincentral'"
+      from: "2024"
