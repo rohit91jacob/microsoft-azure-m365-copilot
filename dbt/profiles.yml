@@ -1,0 +1,31 @@
+azm365:
+  target: "{{ env_var('DBT_TARGET', 'local') }}"
+  outputs:
+    # DuckDB over the silver Parquet files (the local stand-in for Synapse serverless / Fabric).
+    local:
+      type: duckdb
+      path: "{{ env_var('AZM365_DUCKDB_PATH', '../data/warehouse/azm365.duckdb') }}"
+      threads: 4
+      settings:
+        TimeZone: UTC
+        memory_limit: "{{ env_var('AZM365_DUCKDB_MEMORY_LIMIT', '2GB') }}"
+    ci:
+      type: duckdb
+      path: "{{ env_var('AZM365_DUCKDB_PATH', '/tmp/azm365-ci/warehouse/azm365.duckdb') }}"
+      threads: 2
+      settings:
+        TimeZone: UTC
+        memory_limit: 1GB
+    # Microsoft Fabric Warehouse (T-SQL) via dbt-fabric. CI only *compiles* against this target
+    # (`dbt compile --no-populate-cache`, no connection is opened); it has never been run against a
+    # real warehouse. Silver is expected as tables/views in a `silver` schema (OneLake shortcuts
+    # or OPENROWSET views over the ADLS Gen2 silver container). Authentication is Entra ID only.
+    fabric:
+      type: fabric
+      driver: "ODBC Driver 18 for SQL Server"
+      server: "{{ env_var('FABRIC_SQL_ENDPOINT', 'example.datawarehouse.fabric.microsoft.com') }}"
+      port: 1433
+      database: "{{ env_var('FABRIC_WAREHOUSE', 'azm365') }}"
+      schema: dbo
+      authentication: "{{ env_var('FABRIC_AUTHENTICATION', 'CLI') }}"
+      threads: 4

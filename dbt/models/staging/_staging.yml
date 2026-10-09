@@ -1,0 +1,37 @@
+version: 2
+
+models:
+  - name: stg_prices
+    description: Retail price points per snapshot (USD), with region flags.
+    columns:
+      - name: price_key
+        data_tests: [not_null]
+      - name: retail_price
+        data_tests: [not_null, not_negative]
+  - name: stg_roadmap_features
+    description: Roadmap features per snapshot.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [snapshot_id, feature_id]
+  - name: stg_roadmap_feature_products
+    description: Canonical product tags per feature per snapshot.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [snapshot_id, feature_id, product]
+  - name: stg_gh_repos
+    description: Repository metadata per snapshot.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [snapshot_id, repo]
+  - name: stg_gh_commit_weeks
+    description: Weekly default-branch commits per repository per snapshot.
+  - name: stg_gh_releases
+    description: Published releases per snapshot.
+  - name: stg_gh_pulls
+    description: Closed pull requests per snapshot with hours to merge.
+    columns:
+      - name: hours_to_merge
+        data_tests: [not_negative]

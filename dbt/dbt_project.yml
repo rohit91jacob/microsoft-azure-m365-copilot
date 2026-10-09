@@ -1,0 +1,40 @@
+name: azm365
+version: "1.0.0"
+config-version: 2
+profile: azm365
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+analysis-paths: ["analyses"]
+target-path: target
+clean-targets: ["target", "logs"]
+
+vars:
+  # Region every regional price is indexed against in mart_region_price_index.
+  reference_region: eastus
+  # A meter is only ranked across regions when at least this many regions price it.
+  min_regions_for_ranking: 3
+
+models:
+  azm365:
+    staging:
+      +schema: staging
+      +materialized: view
+    intermediate:
+      +schema: intermediate
+      +materialized: table
+    marts:
+      +schema: marts
+      +materialized: table
+      +contract:
+        enforced: true
+
+seeds:
+  azm365:
+    +schema: reference
+
+data_tests:
+  azm365:
+    +store_failures: false

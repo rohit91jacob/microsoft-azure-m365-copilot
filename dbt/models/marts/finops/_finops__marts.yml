@@ -1,0 +1,149 @@
+version: 2
+
+models:
+  - name: mart_price_changes
+    description: >
+      One row per retail price change: the same price point (meter, SKU, price type,
+      reservation term, tier, region, unit) observed in two consecutive snapshots of the same
+      scope with a different retail price. History before the first live run comes from Internet
+      Archive captures of the same API request.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [scope, price_key, to_snapshot_ts]
+      - expression_is_true:
+          arguments:
+            expression: "from_snapshot_ts < to_snapshot_ts"
+      - expression_is_true:
+          arguments:
+            expression: "(direction = 'increase' and new_price > old_price) or (direction = 'decrease' and new_price < old_price)"
+    columns:
+      - { name: scope, data_type: varchar, description: Price scope from config/sources.yml., data_tests: [not_null] }
+      - { name: price_key, data_type: varchar, description: "sha1 of meterId|skuId|type|reservationTerm|tierMinimumUnits|armRegionName|unitOfMeasure|currencyCode.", data_tests: [not_null] }
+      - { name: service_name, data_type: varchar, description: Azure service (serviceName). }
+      - { name: product_name, data_type: varchar, description: Product (productName). }
+      - { name: sku_name, data_type: varchar, description: SKU (skuName). }
+      - { name: meter_name, data_type: varchar, description: Meter (meterName). }
+      - { name: arm_region_name, data_type: varchar, description: ARM region; null or 'Global' for worldwide meters. }
+      - { name: location, data_type: varchar, description: Display location. }
+      - { name: price_type, data_type: varchar, description: "Consumption, Reservation or DevTestConsumption." }
+      - { name: reservation_term, data_type: varchar, description: "Reservation term ('1 Year', '3 Years'); empty for pay-as-you-go." }
+      - { name: unit_of_measure, data_type: varchar, description: "Billing unit, e.g. '1 Hour', '1 GB/Month', '1M'." }
+      - { name: tier_minimum_units, data_type: double, description: Lower bound of the volume tier this price applies to. }
+      - { name: from_snapshot_ts, data_type: timestamp with time zone, description: Earlier observation (UTC). }
+      - { name: to_snapshot_ts, data_type: timestamp with time zone, description: Later observation (UTC). }
+      - { name: from_origin, data_type: varchar, description: live or wayback. }
+      - { name: to_origin, data_type: varchar, description: live or wayback. }
+      - { name: old_price, data_type: double, description: Retail price (USD) at from_snapshot_ts. }
+      - { name: new_price, data_type: double, description: Retail price (USD) at to_snapshot_ts. }
+      - { name: price_change, data_type: double, description: new_price - old_price. }
+      - { name: pct_change, data_type: double, description: price_change / old_price (null when old_price is 0). }
+      - name: direction
+        data_type: varchar
+        description: increase or decrease.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["increase", "decrease"]
+      - { name: old_effective_start_date, data_type: timestamp with time zone, description: effectiveStartDate at the earlier observation. }
+      - { name: new_effective_start_date, data_type: timestamp with time zone, description: effectiveStartDate at the later observation. }
+      - { name: is_synthetic, data_type: boolean, description: True only for committed test-fixture data. }
+
+  - name: mart_price_change_summary
+    description: >
+      Per scope and pair of consecutive snapshots: price points present in both, how many
+      changed, increases, decreases and the median relative change of the changed ones.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [scope, from_snapshot_ts, to_snapshot_ts, from_origin, to_origin]
+      - expression_is_true:
+          arguments:
+            expression: "price_points_changed = increases + decreases and price_points_changed <= price_points_compared"
+    columns:
+      - { name: scope, data_type: varchar, description: Price scope., data_tests: [not_null] }
+      - { name: from_snapshot_ts, data_type: timestamp with time zone, description: Earlier snapshot. }
+      - { name: to_snapshot_ts, data_type: timestamp with time zone, description: Later snapshot. }
+      - { name: from_origin, data_type: varchar, description: live or wayback. }
+      - { name: to_origin, data_type: varchar, description: live or wayback. }
+      - { name: price_points_compared, data_type: bigint, description: Price points observed in both snapshots., data_tests: [not_negative] }
+      - { name: price_points_changed, data_type: bigint, description: Of those, how many changed price. }
+      - { name: increases, data_type: bigint, description: Price increases. }
+      - { name: decreases, data_type: bigint, description: Price decreases. }
+      - { name: changed_share, data_type: double, description: price_points_changed / price_points_compared. }
+      - { name: median_pct_change_of_changed, data_type: double, description: Median relative change among changed price points. }
+      - { name: is_synthetic, data_type: boolean, description: True only for committed test-fixture data. }
+
+  - name: mart_cheapest_region
+    description: >
+      Latest complete snapshot, pay-as-you-go (Consumption), first tier, primary meter region,
+      rankable regions only (see seed region_exclusions). One row per meter priced in at least
+      var('min_regions_for_ranking') regions, with the cheapest and priciest region.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [service_name, product_name, sku_name, meter_name, unit_of_measure]
+      - expression_is_true:
+          arguments:
+            expression: "cheapest_price <= median_price and median_price <= priciest_price"
+    columns:
+      - { name: service_name, data_type: varchar, description: Azure service., data_tests: [not_null] }
+      - { name: product_name, data_type: varchar, description: Product. }
+      - { name: sku_name, data_type: varchar, description: SKU. }
+      - { name: meter_name, data_type: varchar, description: Meter. }
+      - { name: unit_of_measure, data_type: varchar, description: Billing unit. }
+      - { name: n_regions, data_type: bigint, description: Rankable regions pricing this meter. }
+      - { name: cheapest_region, data_type: varchar, description: ARM region with the lowest price (ties broken alphabetically)., data_tests: [not_null] }
+      - { name: cheapest_location, data_type: varchar, description: Display location of the cheapest region. }
+      - { name: cheapest_price, data_type: double, description: Lowest regional retail price (USD)., data_tests: [not_null] }
+      - { name: median_price, data_type: double, description: Median regional retail price (USD). }
+      - { name: priciest_region, data_type: varchar, description: ARM region with the highest price. }
+      - { name: priciest_price, data_type: double, description: Highest regional retail price (USD). }
+      - { name: spread_pct, data_type: double, description: (priciest - cheapest) / cheapest., data_tests: [not_negative] }
+      - { name: cheapest_saving_vs_median_pct, data_type: double, description: (median - cheapest) / median. }
+      - { name: snapshot_ts, data_type: timestamp with time zone, description: Snapshot the prices come from. }
+      - { name: is_synthetic, data_type: boolean, description: True only for committed test-fixture data. }
+
+  - name: mart_region_price_index
+    description: >
+      Per service and rankable region: geometric mean of regional price / reference-region price
+      over every pay-as-you-go meter priced in both (latest complete snapshot). rank_in_service 1
+      is the cheapest region for the service; ties share a rank.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [service_name, arm_region_name]
+    columns:
+      - { name: service_name, data_type: varchar, description: Azure service., data_tests: [not_null] }
+      - { name: arm_region_name, data_type: varchar, description: ARM region., data_tests: [not_null] }
+      - { name: location, data_type: varchar, description: Display location. }
+      - { name: meters_compared, data_type: bigint, description: Meters priced in both this region and the reference region. }
+      - name: price_index
+        data_type: double
+        description: Geometric-mean price relative to the reference region (1.0 = same).
+        data_tests:
+          - not_null
+          - expression_is_true:
+              arguments:
+                expression: "price_index > 0"
+      - { name: reference_region, data_type: varchar, description: var('reference_region'). }
+      - { name: rank_in_service, data_type: bigint, description: 1 = cheapest region for the service. }
+      - { name: regions_in_service, data_type: bigint, description: Regions ranked for the service. }
+      - { name: is_synthetic, data_type: boolean, description: True only for committed test-fixture data. }
+
+  - name: mart_price_effective_months
+    description: >
+      Latest complete snapshot per scope: price points by the month their current price took
+      effect (effectiveStartDate). Shows how recently each service's meters were (re)priced.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [scope, service_name, effective_month]
+    columns:
+      - { name: scope, data_type: varchar, description: Price scope. }
+      - { name: service_name, data_type: varchar, description: Azure service. }
+      - { name: effective_month, data_type: date, description: First day of the effectiveStartDate month., data_tests: [not_null] }
+      - { name: price_points, data_type: bigint, description: Price points whose current price took effect that month. }
+      - { name: regions, data_type: bigint, description: Distinct regions among them. }
+      - { name: snapshot_ts, data_type: timestamp with time zone, description: Snapshot. }
+      - { name: is_synthetic, data_type: boolean, description: True only for committed test-fixture data. }

@@ -1,0 +1,32 @@
+version: 2
+
+models:
+  - name: int_price_observations
+    description: Price observations next to the same price point in the preceding snapshot of the same scope.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [scope, price_key, snapshot_id]
+  - name: int_price_latest
+    description: Latest snapshot of each price scope.
+  - name: int_roadmap_feature_history
+    description: Roadmap features per snapshot with their previous appearance.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [feature_id, snapshot_id]
+  - name: int_roadmap_latest
+    description: Features in the latest roadmap snapshot.
+    columns:
+      - name: feature_id
+        data_tests: [unique, not_null]
+  - name: int_roadmap_features_first_seen
+    description: Every feature ever seen, with creation date and latest state.
+    columns:
+      - name: feature_id
+        data_tests: [unique, not_null]
+  - name: int_gh_latest
+    description: Latest GitHub snapshot per repository.
+    columns:
+      - name: repo
+        data_tests: [unique, not_null]

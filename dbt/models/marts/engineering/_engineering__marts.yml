@@ -1,0 +1,49 @@
+version: 2
+
+models:
+  - name: mart_repo_weekly_throughput
+    description: >
+      Latest snapshot per repository: 52 weeks of default-branch commits (GitHub participation
+      statistics; weeks anchored on Sunday 00:00 UTC, counted back from the snapshot), merged
+      pull requests, median hours to merge and releases per week. Merged-PR counts are complete
+      only where pr_counts_complete is true.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [repo, week_start]
+      - expression_is_true:
+          arguments:
+            expression: "merged_prs_by_bots <= merged_prs"
+    columns:
+      - { name: repo, data_type: varchar, description: owner/name., data_tests: [not_null] }
+      - { name: week_start, data_type: date, description: Sunday the week starts on., data_tests: [not_null] }
+      - { name: commits, data_type: bigint, description: Default-branch commits that week., data_tests: [not_negative] }
+      - { name: merged_prs, data_type: bigint, description: PRs merged that week (from the sample of recently updated closed PRs)., data_tests: [not_negative] }
+      - { name: merged_prs_by_bots, data_type: bigint, description: Of those, opened by a bot account. }
+      - { name: median_hours_to_merge, data_type: double, description: Median hours from PR creation to merge. }
+      - { name: releases_published, data_type: bigint, description: Non-draft releases published that week. }
+      - { name: pr_window_start, data_type: timestamp with time zone, description: Oldest updated_at in the PR sample; merged counts are complete from here on. }
+      - { name: pr_counts_complete, data_type: boolean, description: week_start >= pr_window_start. }
+
+  - name: mart_repo_summary
+    description: One row per repository (latest snapshot) with popularity, commits, PR throughput and release cadence.
+    columns:
+      - { name: repo, data_type: varchar, description: owner/name., data_tests: [unique, not_null] }
+      - { name: snapshot_ts, data_type: timestamp with time zone, description: Snapshot. }
+      - { name: stars, data_type: bigint, description: Stargazers. }
+      - { name: forks, data_type: bigint, description: Forks. }
+      - { name: open_issues, data_type: bigint, description: Open issues + open PRs (GitHub's open_issues_count). }
+      - { name: language, data_type: varchar, description: Primary language. }
+      - { name: license, data_type: varchar, description: SPDX licence ID. }
+      - { name: commits_52w, data_type: bigint, description: Default-branch commits over the 52 weeks. }
+      - { name: commits_12w, data_type: bigint, description: Default-branch commits over the last 12 weeks. }
+      - { name: pr_window_start, data_type: timestamp with time zone, description: Start of the PR sample window. }
+      - { name: pr_window_days, data_type: double, description: Length of the PR window in days. }
+      - { name: merged_prs_in_window, data_type: bigint, description: PRs merged inside the window. }
+      - { name: median_hours_to_merge, data_type: double, description: Median hours to merge inside the window. }
+      - { name: bot_share_of_merged, data_type: double, description: Share of merged PRs opened by bots. }
+      - { name: releases_365d, data_type: bigint, description: Stable releases published in the last 365 days (first 100 releases only). }
+      - { name: median_days_between_releases, data_type: double, description: Median gap between consecutive stable releases. }
+      - { name: latest_release_tag, data_type: varchar, description: Most recent stable release tag. }
+      - { name: latest_release_at, data_type: timestamp with time zone, description: When it was published. }
+      - { name: is_synthetic, data_type: boolean, description: True only for committed test-fixture data. }

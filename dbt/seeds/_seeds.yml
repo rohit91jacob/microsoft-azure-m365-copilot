@@ -1,0 +1,26 @@
+version: 2
+
+seeds:
+  - name: roadmap_product_aliases
+    description: >
+      Hand-maintained map from product tags the roadmap has renamed or spelled differently over
+      time to one canonical product, so a feature tagged under the old name in an archived
+      snapshot lines up with the same feature today. Unlisted tags are used as-is.
+    columns:
+      - name: raw_product
+        data_tests: [unique, not_null]
+      - name: product
+        data_tests: [not_null]
+  - name: region_exclusions
+    description: >
+      Regions the Retail Prices API lists that ordinary public-cloud customers cannot simply
+      deploy to (Azure Government, operator edge zones, restricted-access regions). They stay in
+      the price history but are left out of cheapest-region rankings and the region price index.
+    columns:
+      - name: arm_region_name
+        data_tests: [unique, not_null]
+      - name: category
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["sovereign_cloud", "operator_edge_zone", "restricted_region"]

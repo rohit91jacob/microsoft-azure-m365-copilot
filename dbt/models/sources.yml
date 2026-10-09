@@ -1,0 +1,52 @@
+version: 2
+
+sources:
+  - name: silver
+    description: >
+      Typed Parquet tables written by `azm365 silver`, one file per (table, scope, bronze
+      snapshot). On DuckDB they are scanned in place (`external_location`); on Fabric they are
+      expected as tables or views in a `silver` schema over the ADLS Gen2 silver container.
+    schema: silver
+    config:
+      meta:
+        external_location: "read_parquet('{{ env_var('AZM365_SILVER_DIR', '../data/lake/silver') }}/{name}/**/*.parquet', union_by_name = true)"
+    tables:
+      - name: prices
+        description: Azure Retail Prices API items, one row per price point (price_key) per snapshot.
+        columns:
+          - name: snapshot_id
+            data_tests: [not_null]
+          - name: price_key
+            data_tests: [not_null]
+          - name: retail_price
+            data_tests: [not_null]
+          - name: origin
+            data_tests:
+              - accepted_values:
+                  arguments:
+                    values: ["live", "wayback"]
+      - name: roadmap_features
+        description: Microsoft 365 public roadmap features, one row per feature per snapshot.
+        columns:
+          - name: feature_id
+            data_tests: [not_null]
+          - name: status
+            data_tests: [not_null]
+      - name: roadmap_feature_tags
+        description: Product, platform, cloud-instance and release-phase tags of each feature.
+        columns:
+          - name: feature_id
+            data_tests: [not_null]
+          - name: tag_type
+            data_tests:
+              - accepted_values:
+                  arguments:
+                    values: ["product", "platform", "cloud_instance", "release_phase", "untyped"]
+      - name: gh_repos
+        description: GitHub repository metadata at each snapshot.
+      - name: gh_commit_weeks
+        description: GitHub participation statistics, default-branch commits per week (52 weeks).
+      - name: gh_releases
+        description: Most recent GitHub releases (first page, 100) at each snapshot.
+      - name: gh_pulls
+        description: Most recently updated closed pull requests (up to 300) at each snapshot.

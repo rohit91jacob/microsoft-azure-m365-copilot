@@ -1,0 +1,101 @@
+version: 2
+
+models:
+  - name: mart_roadmap_cadence
+    description: >
+      Latest Microsoft 365 roadmap snapshot by canonical product, status and planned GA month,
+      with the number of Copilot features (title or product tag mentions "Copilot"). A feature
+      tagged with several products is counted under each.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [product, status, ga_month]
+      - expression_is_true:
+          arguments:
+            expression: "copilot_features <= features"
+    columns:
+      - { name: product, data_type: varchar, description: Canonical product (seed roadmap_product_aliases); '(untagged)' if none., data_tests: [not_null] }
+      - name: status
+        data_type: varchar
+        description: Roadmap status.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["In development", "Rolling out", "Launched", "Cancelled"]
+              config:
+                severity: warn
+      - { name: ga_month, data_type: date, description: Planned general-availability month (first day); null if not given. }
+      - { name: features, data_type: bigint, description: Distinct features. }
+      - { name: copilot_features, data_type: bigint, description: Of those, Copilot features. }
+      - { name: snapshot_ts, data_type: timestamp with time zone, description: Snapshot. }
+      - { name: is_synthetic, data_type: boolean, description: True only for committed test-fixture data. }
+
+  - name: mart_roadmap_monthly_additions
+    description: >
+      Features added to the roadmap per month (the roadmap's `created` date) over the union of
+      every snapshot, and the Copilot share.
+    columns:
+      - { name: created_month, data_type: date, description: First day of the creation month., data_tests: [unique, not_null] }
+      - { name: features_added, data_type: bigint, description: Features created that month. }
+      - { name: copilot_features_added, data_type: bigint, description: Of those, Copilot features. }
+      - name: copilot_share
+        data_type: double
+        description: copilot_features_added / features_added.
+        data_tests:
+          - expression_is_true:
+              arguments:
+                expression: "copilot_share between 0 and 1"
+
+  - name: mart_roadmap_slippage
+    description: >
+      Every change of a feature's planned GA month between two consecutive snapshots in which it
+      appears (archived Wayback captures and daily live pulls).
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [feature_id, to_snapshot_ts]
+      - expression_is_true:
+          arguments:
+            expression: "months_moved <> 0 and ((direction = 'slipped' and months_moved > 0) or (direction = 'pulled_in' and months_moved < 0))"
+    columns:
+      - { name: feature_id, data_type: bigint, description: Roadmap feature ID (microsoft.com/microsoft-365/roadmap?id=...)., data_tests: [not_null] }
+      - { name: title, data_type: varchar, description: Feature title at the later snapshot. }
+      - { name: products, data_type: varchar, description: Comma-separated canonical products. }
+      - { name: mentions_copilot, data_type: boolean, description: Title or product mentions Copilot. }
+      - { name: from_snapshot_ts, data_type: timestamp with time zone, description: Earlier snapshot. }
+      - { name: to_snapshot_ts, data_type: timestamp with time zone, description: Later snapshot. }
+      - { name: from_ga_label, data_type: varchar, description: "GA label before, e.g. 'January CY2026'." }
+      - { name: to_ga_label, data_type: varchar, description: GA label after. }
+      - { name: from_ga_month, data_type: date, description: GA month before. }
+      - { name: to_ga_month, data_type: date, description: GA month after. }
+      - { name: months_moved, data_type: bigint, description: Months between the two GA months (positive = later). }
+      - { name: direction, data_type: varchar, description: slipped or pulled_in. }
+      - { name: from_status, data_type: varchar, description: Status before. }
+      - { name: to_status, data_type: varchar, description: Status after. }
+      - { name: is_synthetic, data_type: boolean, description: True only for committed test-fixture data. }
+
+  - name: mart_roadmap_slippage_by_product
+    description: >
+      Per canonical product and pair of consecutive snapshots: features that have a GA month in
+      both, how many slipped or were pulled in, the slip rate and mean slip, with Copilot
+      features broken out.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [product, from_snapshot_ts, to_snapshot_ts]
+      - expression_is_true:
+          arguments:
+            expression: "features_slipped + features_pulled_in <= features_compared and copilot_features_slipped <= copilot_features_compared"
+    columns:
+      - { name: product, data_type: varchar, description: Canonical product., data_tests: [not_null] }
+      - { name: from_snapshot_ts, data_type: timestamp with time zone, description: Earlier snapshot. }
+      - { name: to_snapshot_ts, data_type: timestamp with time zone, description: Later snapshot. }
+      - { name: features_compared, data_type: bigint, description: Features with a GA month in both snapshots. }
+      - { name: features_slipped, data_type: bigint, description: GA month moved later. }
+      - { name: features_pulled_in, data_type: bigint, description: GA month moved earlier. }
+      - { name: slip_rate, data_type: double, description: features_slipped / features_compared. }
+      - { name: avg_months_slipped, data_type: double, description: Mean months moved among slipped features. }
+      - { name: copilot_features_compared, data_type: bigint, description: Copilot features compared. }
+      - { name: copilot_features_slipped, data_type: bigint, description: Copilot features slipped. }
+      - { name: is_synthetic, data_type: boolean, description: True only for committed test-fixture data. }

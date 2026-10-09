@@ -1,0 +1,17 @@
+arm_region_name,category,reason
+US Gov,sovereign_cloud,Azure Government meters without an ARM region name; not orderable from public Azure
+attatlanta1,operator_edge_zone,AT&T operator edge zone (Azure Extended Zone); not a full Azure region
+attdallas1,operator_edge_zone,AT&T operator edge zone (Azure Extended Zone); not a full Azure region
+australiacentral2,restricted_region,Restricted-access region (mainly disaster-recovery pairing); new deployments need an access request
+brazilsoutheast,restricted_region,Restricted-access region (mainly disaster-recovery pairing); new deployments need an access request
+francesouth,restricted_region,Restricted-access region (mainly disaster-recovery pairing); new deployments need an access request
+germanynorth,restricted_region,Restricted-access region (mainly disaster-recovery pairing); new deployments need an access request
+jioindiacentral,restricted_region,Restricted-access region for Jio customers in India
+jioindiawest,restricted_region,Restricted-access region for Jio customers in India
+norwaywest,restricted_region,Restricted-access region (mainly disaster-recovery pairing); new deployments need an access request
+southafricawest,restricted_region,Restricted-access region (mainly disaster-recovery pairing); new deployments need an access request
+switzerlandwest,restricted_region,Restricted-access region (mainly disaster-recovery pairing); new deployments need an access request
+uaecentral,restricted_region,Restricted-access region (mainly disaster-recovery pairing); new deployments need an access request
+usgovarizona,sovereign_cloud,Azure Government; only for vetted US government customers
+usgovtexas,sovereign_cloud,Azure Government; only for vetted US government customers
+usgovvirginia,sovereign_cloud,Azure Government; only for vetted US government customers
