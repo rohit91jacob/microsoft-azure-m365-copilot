@@ -1,0 +1,61 @@
+name: deploy
+
+# Publishes the Functions app (code + dbt project + config) to an existing Azure deployment
+# created from infra/. OFF by default: the job only runs when the repository variable
+# AZURE_DEPLOY_ENABLED is "true" and the OIDC variables below are set. Authentication is GitHub
+# OIDC federation to an Entra ID app (infra/modules/github_oidc) - there are no client secrets
+# or storage keys anywhere. This workflow has never been run against a real subscription.
+#
+# Repository variables (Settings -> Secrets and variables -> Actions -> Variables):
+#   AZURE_DEPLOY_ENABLED   "true" to enable
+#   AZURE_CLIENT_ID        output deploy_client_id
+#   AZURE_TENANT_ID        output tenant_id
+#   AZURE_SUBSCRIPTION_ID  the subscription
+#   AZURE_FUNCTIONAPP_NAME output function_app_name
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "functions/**"
+      - "dbt/**"
+      - "config/**"
+      - "uv.lock"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: publish Function App (Flex Consumption)
+    if: vars.AZURE_DEPLOY_ENABLED == 'true' && vars.AZURE_CLIENT_ID != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: production # the federated credential trusts this environment only
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          python-version: "3.12"
+      - name: Assemble the deployment bundle
+        run: make functions-bundle
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Deploy (remote build installs requirements.txt)
+        uses: Azure/functions-action@c5060b3b8bb1ebbcb531abd00c822ecbaa8ea656 # v1.5.7
+        with:
+          app-name: ${{ vars.AZURE_FUNCTIONAPP_NAME }}
+          package: functions/bundle
+          remote-build: true
