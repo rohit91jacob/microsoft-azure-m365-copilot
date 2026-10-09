@@ -1,0 +1,11 @@
+{
+  "name": "trg_azm365_daily",
+  "properties": {
+    "description": "03:30 UTC daily, after the 02:15-02:25 UTC extractor timers.",
+    "type": "ScheduleTrigger",
+    "typeProperties": {
+      "recurrence": { "frequency": "Day", "interval": 1, "startTime": "2026-01-01T03:30:00Z", "timeZone": "UTC" }
+    },
+    "pipelines": [{ "pipelineReference": { "referenceName": "pl_azm365_daily", "type": "PipelineReference" } }]
+  }
+}

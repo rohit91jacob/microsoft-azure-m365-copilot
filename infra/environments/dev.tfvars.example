@@ -1,0 +1,17 @@
+# Copy to dev.tfvars (ignored by .gitignore) and fill in real values.
+# terraform -chdir=infra plan -var-file=environments/dev.tfvars
+subscription_id   = "00000000-0000-0000-0000-000000000000"
+environment       = "dev"
+location          = "swedencentral"
+monthly_budget    = 25
+budget_start_date = "2026-11-01T00:00:00Z"
+alert_emails      = ["you@example.com"]
+# CMK version and Key Vault secrets expire; key rotation renews the CMK automatically.
+key_expiration_date = "2028-01-01T00:00:00Z"
+# Public IP of the machine running Terraform, so it can manage containers/keys through the firewalls.
+admin_ip_ranges = ["203.0.113.10"]
+# Optional: owner/name of the GitHub repository allowed to deploy via OIDC.
+github_repository = "rohit91jacob/microsoft-azure-m365-copilot"
+# Optional GitHub token: pass with TF_VAR_github_token (ephemeral, never stored) and set
+# github_token_version = 1 (bump to rotate).
+github_token_version = 0

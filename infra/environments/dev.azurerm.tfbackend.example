@@ -1,0 +1,7 @@
+# terraform -chdir=infra init -backend-config=environments/dev.azurerm.tfbackend
+# State lives in a separately bootstrapped storage account; Entra ID auth, no access keys.
+resource_group_name  = "rg-tfstate"
+storage_account_name = "sttfstateexample"
+container_name       = "tfstate"
+key                  = "azm365/dev.tfstate"
+use_azuread_auth     = true

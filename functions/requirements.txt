@@ -1,0 +1,4 @@
+# Azure Functions installs this file during remote build. `make functions-bundle` rewrites it
+# in functions/bundle/ with the exact pinned set exported from uv.lock plus the azm365 wheel.
+azure-functions==1.25.0
+azm365

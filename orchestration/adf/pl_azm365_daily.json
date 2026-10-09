@@ -1,0 +1,48 @@
+{
+  "name": "pl_azm365_daily",
+  "properties": {
+    "description": "Daily transform: check that today's bronze manifests landed, then call the Functions app's transform endpoint (bronze -> silver -> DQ gate -> dbt build -> gold). Extractors are timer-triggered in the Function App and run before this pipeline's trigger.",
+    "concurrency": 1,
+    "parameters": {
+      "lake_filesystem": { "type": "string", "defaultValue": "bronze" }
+    },
+    "activities": [
+      {
+        "name": "CheckBronzeManifests",
+        "description": "Fails the run early if the bronze manifest folder is missing (extractors never ran).",
+        "type": "GetMetadata",
+        "typeProperties": {
+          "dataset": { "referenceName": "ds_bronze_manifest", "type": "DatasetReference" },
+          "fieldList": ["exists", "lastModified"]
+        },
+        "policy": { "timeout": "0.00:10:00", "retry": 2, "retryIntervalInSeconds": 120 }
+      },
+      {
+        "name": "IfManifestsPresent",
+        "type": "IfCondition",
+        "dependsOn": [{ "activity": "CheckBronzeManifests", "dependencyConditions": ["Succeeded"] }],
+        "typeProperties": {
+          "expression": { "value": "@activity('CheckBronzeManifests').output.exists", "type": "Expression" },
+          "ifFalseActivities": [
+            {
+              "name": "FailNoBronze",
+              "type": "Fail",
+              "typeProperties": { "message": "bronze/_manifest is missing: the extractor functions have not landed any snapshot", "errorCode": "AZM365_NO_BRONZE" }
+            }
+          ],
+          "ifTrueActivities": [
+            {
+              "name": "Transform",
+              "description": "POST /api/transform. 200 = gold published; 422 = data-quality gate failed; 500 = dbt failed.",
+              "type": "AzureFunctionActivity",
+              "linkedServiceName": { "referenceName": "ls_azm365_functions", "type": "LinkedServiceReference" },
+              "typeProperties": { "functionName": "transform", "method": "POST", "body": "{}" },
+              "policy": { "timeout": "0.00:45:00", "retry": 1, "retryIntervalInSeconds": 600, "secureOutput": false }
+            }
+          ]
+        }
+      }
+    ],
+    "annotations": ["azm365", "medallion"]
+  }
+}

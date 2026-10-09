@@ -1,0 +1,13 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "AZM365_LAKE": "azurite",
+    "AZM365_BLOB_CONNECTION_STRING": "UseDevelopmentStorage=true",
+    "AZM365_DATA_DIR": "../data/functions",
+    "AZM365_CONFIG": "../config/sources.yml",
+    "AZM365_DBT_PROJECT_DIR": "../dbt",
+    "AZM365_LOG_FORMAT": "json"
+  }
+}
