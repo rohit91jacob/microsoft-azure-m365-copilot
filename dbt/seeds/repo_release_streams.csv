@@ -1,0 +1,5 @@
+repo,tag_prefix,published_as
+microsoft/vscode,,VS Code stable releases (tags 1.N.M; see code.visualstudio.com/updates)
+microsoft/TypeScript,v,typescript on npm (excludes vscode-typescript/v* releases)
+microsoft/semantic-kernel,python-,semantic-kernel on PyPI (excludes dotnet-* and vectordata-dotnet-*)
+microsoft/autogen,python-v,autogen-agentchat on PyPI (excludes autogenstudio-v* and legacy v0.2 tags)

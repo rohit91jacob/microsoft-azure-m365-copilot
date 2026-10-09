@@ -49,3 +49,8 @@
 {% macro hours_between(start_ts, end_ts) -%}
     cast({{ dbt.datediff(start_ts, end_ts, 'second') }} as {{ azm365.dbl() }}) / 3600.0
 {%- endmacro %}
+
+{# character length of a string (T-SQL has LEN, not LENGTH) #}
+{% macro str_len(expr) -%}{{ return(adapter.dispatch('str_len', 'azm365')(expr)) }}{%- endmacro %}
+{% macro default__str_len(expr) -%}length({{ expr }}){%- endmacro %}
+{% macro fabric__str_len(expr) -%}len({{ expr }}){%- endmacro %}

@@ -24,3 +24,16 @@ seeds:
           - accepted_values:
               arguments:
                 values: ["sovereign_cloud", "operator_edge_zone", "restricted_region"]
+  - name: repo_release_streams
+    description: >
+      Which release stream of each repository mart_repo_summary reports. Several Microsoft
+      repositories publish more than one artefact from the same repo (TypeScript also ships
+      vscode-typescript/v*, semantic-kernel ships dotnet-* and python-*), so "newest release of
+      the repo" mixes streams. A release belongs to the stream when its tag starts with
+      tag_prefix and the next character is a digit; an empty prefix means the tag starts with a
+      digit. Repositories not listed here keep every stream.
+    columns:
+      - name: repo
+        data_tests: [unique, not_null]
+      - name: published_as
+        data_tests: [not_null]

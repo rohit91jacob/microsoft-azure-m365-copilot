@@ -106,6 +106,15 @@ def test_engineering_marts(pipeline_runs):
     assert all(r[1] > 0 and r[2] > 0 for r in rows)
     [(weeks,)] = q(settings, "SELECT count(*) FROM marts.mart_repo_weekly_throughput")
     assert weeks == 4 * 52
+    # The newest simulated release of every repo is a side-stream tag (side-tool/v0.3.0); the
+    # mart reports the repo's main stream from the repo_release_streams seed instead.
+    tags = dict(q(settings, "SELECT repo, latest_release_tag FROM marts.mart_repo_summary"))
+    assert tags == {
+        "microsoft/TypeScript": "v1.20.0",
+        "microsoft/autogen": "python-v1.20.0",
+        "microsoft/semantic-kernel": "python-1.20.0",
+        "microsoft/vscode": "1.20.0",
+    }
 
 
 def test_gold_is_published_as_parquet(pipeline_runs):

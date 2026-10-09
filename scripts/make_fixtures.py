@@ -19,6 +19,7 @@ Usage::
 from __future__ import annotations
 
 import argparse
+import csv
 import hashlib
 import json
 import re
@@ -495,14 +496,36 @@ def gh_repo(repo: str) -> dict[str, Any]:
     }
 
 
+def release_prefixes() -> dict[str, str]:
+    """Main release-stream tag prefix per repo, from the dbt seed the mart filters on."""
+    with (REPO / "dbt" / "seeds" / "repo_release_streams.csv").open(encoding="utf-8") as fh:
+        return {row["repo"]: row["tag_prefix"] for row in csv.DictReader(fh)}
+
+
 def gh_releases(repo: str, day: date) -> list[dict[str, Any]]:
-    out = []
+    prefix = release_prefixes().get(repo, "v")
+    start = datetime.combine(day, datetime.min.time(), UTC)
+    # The newest release belongs to a *different* stream of the same repo (as with
+    # vscode-typescript/v* in microsoft/TypeScript); mart_repo_summary must skip it.
+    out = [
+        {
+            "id": int(unit("rel-other", repo) * 1e9),
+            "tag_name": "side-tool/v0.3.0",
+            "name": "Simulated side-stream release",
+            "draft": False,
+            "prerelease": False,
+            "created_at": (start - timedelta(days=2)).isoformat().replace("+00:00", "Z"),
+            "published_at": (start - timedelta(days=1)).isoformat().replace("+00:00", "Z"),
+            "assets": [],
+            "body": "simulated",
+        }
+    ]
     for i in range(8):
-        published = datetime.combine(day, datetime.min.time(), UTC) - timedelta(days=5 + 30 * i)
+        published = start - timedelta(days=5 + 30 * i)
         out.append(
             {
                 "id": int(unit("rel", repo, i) * 1e9),
-                "tag_name": f"v1.{20 - i}.0",
+                "tag_name": f"{prefix}1.{20 - i}.0",
                 "name": f"Simulated release 1.{20 - i}",
                 "draft": False,
                 "prerelease": i % 4 == 3,

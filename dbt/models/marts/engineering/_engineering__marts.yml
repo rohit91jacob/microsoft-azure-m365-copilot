@@ -42,8 +42,8 @@ models:
       - { name: merged_prs_in_window, data_type: bigint, description: PRs merged inside the window. }
       - { name: median_hours_to_merge, data_type: double, description: Median hours to merge inside the window. }
       - { name: bot_share_of_merged, data_type: double, description: Share of merged PRs opened by bots. }
-      - { name: releases_365d, data_type: bigint, description: Stable releases published in the last 365 days (first 100 releases only). }
-      - { name: median_days_between_releases, data_type: double, description: Median gap between consecutive stable releases. }
-      - { name: latest_release_tag, data_type: varchar, description: Most recent stable release tag. }
+      - { name: releases_365d, data_type: bigint, description: Stable releases of the repo's main release stream (seed repo_release_streams) published in the last 365 days (first 100 releases only). }
+      - { name: median_days_between_releases, data_type: double, description: Median gap between consecutive stable releases of the main release stream. }
+      - { name: latest_release_tag, data_type: varchar, description: Most recent stable release tag of the main release stream (seed repo_release_streams). }
       - { name: latest_release_at, data_type: timestamp with time zone, description: When it was published. }
       - { name: is_synthetic, data_type: boolean, description: True only for committed test-fixture data. }

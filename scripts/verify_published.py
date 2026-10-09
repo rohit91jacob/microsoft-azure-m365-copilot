@@ -314,7 +314,9 @@ def verify_github(con, cache: Path) -> list[dict[str, Any]]:
             "github_latest_stable": ts_tag,
             "mart_latest_release_tag": rel.get("microsoft/TypeScript"),
             "published": f"npm typescript@latest = {npm['version']}",
-            "agree": (ts_tag or "").lstrip("v") == npm["version"],
+            # The mart must report the same (main-stream) tag, not just the raw releases.
+            "agree": (ts_tag or "").lstrip("v") == npm["version"]
+            and rel.get("microsoft/TypeScript") == ts_tag,
         }
     )
     pypi = json.loads(fetch("https://pypi.org/pypi/semantic-kernel/json", cache, "pypi_sk.json"))
@@ -330,9 +332,11 @@ def verify_github(con, cache: Path) -> list[dict[str, Any]]:
         {
             "repo": "microsoft/semantic-kernel",
             "github_latest_stable": sk_tag,
+            "mart_latest_release_tag": rel.get("microsoft/semantic-kernel"),
             "published": f"PyPI semantic-kernel = {pypi['info']['version']}",
             "agree": sk_tag is not None
-            and sk_tag.removeprefix("python-") == pypi["info"]["version"],
+            and sk_tag.removeprefix("python-") == pypi["info"]["version"]
+            and rel.get("microsoft/semantic-kernel") == sk_tag,
         }
     )
     page = fetch("https://code.visualstudio.com/updates", cache, "vscode_updates.html").decode(

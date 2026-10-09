@@ -53,6 +53,27 @@ merged_median as (
     from merged
 ),
 
+-- Stable releases of the repository's main release stream only (seed repo_release_streams):
+-- tag = prefix followed by a digit. Without this, TypeScript's newest "release" would be
+-- vscode-typescript/v1.0.1 rather than the compiler version published to npm.
+stream_releases as (
+    select
+        r.repo,
+        r.tag_name,
+        r.published_at,
+        r.snapshot_ts
+    from {{ ref('stg_gh_releases') }} as r
+    left join {{ ref('repo_release_streams') }} as s on r.repo = s.repo
+    where not {{ azm365.is_true('r.prerelease') }}
+      and (
+          s.repo is null
+          or (
+              substring(r.tag_name, 1, {{ azm365.str_len("coalesce(s.tag_prefix, '')") }}) = coalesce(s.tag_prefix, '')
+              and substring(r.tag_name, {{ azm365.str_len("coalesce(s.tag_prefix, '')") }} + 1, 1) between '0' and '9'
+          )
+      )
+),
+
 releases as (
     select
         r.repo,
@@ -60,9 +81,8 @@ releases as (
         r.published_at,
         lag(r.published_at) over (partition by r.repo order by r.published_at) as prev_published_at,
         row_number() over (partition by r.repo order by r.published_at desc) as rn
-    from {{ ref('stg_gh_releases') }} as r
+    from stream_releases as r
     inner join latest as l on r.repo = l.repo and r.snapshot_ts = l.snapshot_ts
-    where not {{ azm365.is_true('r.prerelease') }}
 ),
 
 release_gaps as (
