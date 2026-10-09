@@ -20,7 +20,7 @@ import duckdb
 import pyarrow.parquet as pq
 import yaml
 
-from azm365 import quality, silver
+from azm365 import bronze, quality, silver
 from azm365.extract import SOURCES, ExtractContext, run_extract
 from azm365.http import Fetcher, FixtureFetcher, LiveFetcher
 from azm365.lake import Lake, open_lake
@@ -105,7 +105,7 @@ def run_dq(settings: Settings, *, lake: Lake | None = None) -> list[quality.Chec
     lake = lake or open_lake(settings)
     silver_dir = silver.read_dir(settings, lake)
     silver.ensure_empty_tables(silver_dir)
-    results = quality.run(silver_dir)
+    results = quality.run(silver_dir, manifests=bronze.list_manifests(lake))
     quality.record(lake, results)
     failed = quality.failed_errors(results)
     if failed:

@@ -63,3 +63,16 @@ def test_fixture_fetcher_prefers_day_dir_then_common(tmp_path):
     assert FixtureFetcher(tmp_path, "2026-01-01").get("https://x.test/a").json() == {"v": "day"}
     with pytest.raises(FetchError, match="no fixture"):
         FixtureFetcher(tmp_path, "2026-01-01").get("https://x.test/unknown")
+
+
+@responses.activate
+def test_live_fetcher_explains_an_exhausted_github_rate_limit():
+    url = "https://api.test/repos/o/r"
+    responses.add(
+        responses.GET,
+        url,
+        status=403,
+        headers={"X-RateLimit-Remaining": "0", "X-RateLimit-Reset": "1791574984"},
+    )
+    with pytest.raises(FetchError, match=r"rate limit exhausted .*1791574984.*GITHUB_TOKEN"):
+        LiveFetcher(user_agent="t", sleep=lambda _s: None).get(url)

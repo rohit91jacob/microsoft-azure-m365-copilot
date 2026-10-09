@@ -102,6 +102,12 @@ class LiveFetcher:
                 if r.status_code in accept_status:
                     return Response(r.status_code, r.content, dict(r.headers))
                 last = f"HTTP {r.status_code}"
+                if r.status_code == 403 and r.headers.get("X-RateLimit-Remaining") == "0":
+                    reset = r.headers.get("X-RateLimit-Reset", "?")
+                    raise FetchError(
+                        f"GET {canonical_url(url, params)} -> {last}: rate limit exhausted "
+                        f"(resets at epoch {reset}); set GITHUB_TOKEN to raise the limit"
+                    )
                 if r.status_code not in RETRY_STATUS:
                     raise FetchError(f"GET {canonical_url(url, params)} -> {last}")
                 retry_after = r.headers.get("Retry-After")

@@ -47,8 +47,10 @@ CHECKS: list[Check] = [
         "prices_not_empty",
         "prices",
         "error",
-        "every landed price snapshot has at least one price",
-        "SELECT snapshot_id, scope FROM prices GROUP BY ALL HAVING count(*) = 0",
+        "every live price snapshot landed in bronze produced at least one silver price row",
+        "SELECT m.snapshot_id, m.scope, m.item_count FROM bronze_manifests m "
+        "ANTI JOIN prices p ON p.snapshot_id = m.snapshot_id AND p.scope = m.scope "
+        "WHERE m.source = 'azure_prices' AND m.origin = 'live'",
     ),
     Check(
         "prices_key_unique",
@@ -187,9 +189,24 @@ CHECKS: list[Check] = [
 ]
 
 
-def connect(silver_dir: Path) -> duckdb.DuckDBPyConnection:
+MANIFEST_COLUMNS = ("source", "dataset", "scope", "snapshot_id", "origin", "item_count")
+
+
+def connect(silver_dir: Path, manifests: list[dict] | None = None) -> duckdb.DuckDBPyConnection:
+    """DuckDB views over every silver table, plus ``bronze_manifests`` (what bronze landed).
+
+    The manifest table lets a check see snapshots that produced *no* silver rows at all, which
+    a query over silver alone cannot.
+    """
     con = duckdb.connect()
     con.execute("SET TimeZone = 'UTC'")
+    con.execute(
+        "CREATE TABLE bronze_manifests (source VARCHAR, dataset VARCHAR, scope VARCHAR, "
+        "snapshot_id VARCHAR, origin VARCHAR, item_count BIGINT)"
+    )
+    rows = [tuple(m.get(c) for c in MANIFEST_COLUMNS) for m in manifests or []]
+    if rows:
+        con.executemany("INSERT INTO bronze_manifests VALUES (?, ?, ?, ?, ?, ?)", rows)
     for table in SCHEMAS:
         glob = (silver_dir / table).as_posix() + "/**/*.parquet"
         con.execute(
@@ -198,8 +215,13 @@ def connect(silver_dir: Path) -> duckdb.DuckDBPyConnection:
     return con
 
 
-def run(silver_dir: Path, checks: list[Check] | None = None) -> list[CheckResult]:
-    con = connect(silver_dir)
+def run(
+    silver_dir: Path,
+    checks: list[Check] | None = None,
+    *,
+    manifests: list[dict] | None = None,
+) -> list[CheckResult]:
+    con = connect(silver_dir, manifests)
     results = []
     for c in checks or CHECKS:
         rel = con.sql(c.sql)
