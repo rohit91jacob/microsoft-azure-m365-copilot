@@ -33,8 +33,9 @@ compiles to T-SQL in CI). No Azure subscription was used to build or test it.
 **Results** (fresh live run, 9 October 2026; all numbers below are from that run):
 
 * The roadmap lists **1,902** features; **637 (33.5%)** mention Copilot. 175 features tagged
-  *Microsoft Copilot (Microsoft 365)* have a planned GA month that has already passed and are
-  not marked Launched.
+  *Microsoft Copilot (Microsoft 365)* have a planned GA month before October 2026 and are
+  not marked Launched (127 In development, 47 Rolling out, 1 Cancelled; from
+  `mart_roadmap_cadence`).
 * Between the January and October 2026 snapshots, **255 of 908** features with a GA month in
   both (28%) slipped, by 5.3 months on average; Copilot features: 99 of 339.
 * **D2s v5 Linux** costs USD 0.096/h in East US, the cheapest of 54 rankable regions (median
@@ -43,8 +44,8 @@ compiles to T-SQL in CI). No Azure subscription was used to build or test it.
 * Reconciliation against independently published channels: **618/618** VM prices, **58/58**
   storage tier tables and **50/50** Functions tier tables match Microsoft's pricing-calculator
   data; the roadmap JSON and RSS feeds agree on all 1,902 features, their status and GA month;
-  GitHub release tags match npm, PyPI and the VS Code release notes. One mismatch is reported in
-  [docs/verification.md](docs/verification.md).
+  GitHub release tags (and `mart_repo_summary.latest_release_tag`) match npm, PyPI and the VS
+  Code release notes. Caveats are listed in [docs/verification.md](docs/verification.md).
 
 ## Architecture
 
@@ -79,7 +80,7 @@ flowchart LR
   ADF{{"Data Factory pl_azm365_daily<br/>03:30 UTC: check manifests -> call transform"}} --> TR
   TR --> SIL["silver build<br/>incremental by sha256"] --> S
   S --> DQ{{"DQ gate: 18 checks<br/>error = exit 3"}}
-  DQ --> DBT["dbt build: 24 models, 74 tests<br/>DuckDB here / Fabric Warehouse T-SQL"]
+  DQ --> DBT["dbt build: 24 models, 77 tests<br/>DuckDB here / Fabric Warehouse T-SQL"]
   DBT --> G
   DQ --> O
   G --> SITE["azm365 report -> GitHub Pages"]
@@ -95,7 +96,7 @@ flowchart LR
 | Bronze | `src/azm365/bronze.py` | Deterministic gzip envelopes (same payload, same bytes), manifest written after the object, sha256 verified on read |
 | Silver | `src/azm365/silver.py` | Typed PyArrow schemas, lineage on every row, rebuilt only when the bronze sha256 changes |
 | Data quality | `src/azm365/quality.py` | 18 SQL checks over silver; error-level failures stop the run before dbt |
-| Transform | `dbt/` | staging -> intermediate -> marts, contracts enforced on marts, 74 data tests, cross-database macros for DuckDB and Fabric T-SQL |
+| Transform | `dbt/` | staging -> intermediate -> marts, contracts enforced on marts, 3 seeds, 77 data tests, cross-database macros for DuckDB and Fabric T-SQL |
 | Orchestration | `functions/function_app.py`, `orchestration/adf/*.json` | Timer extractors; ADF pipeline (Get Metadata on `bronze/_manifest` -> If -> Azure Function activity) read by Terraform |
 | Infrastructure | `infra/` | Terraform azurerm 5.9: VNet + service endpoints, ADLS Gen2 with CMK, Flex Consumption app with managed identity, Key Vault (RBAC, purge protection), Data Factory, Log Analytics with daily caps, budget, GitHub OIDC deploy identity |
 | Results site | `src/azm365/report.py` | Static HTML + `summary.json` from the gold marts; inline SVG, light/dark |
@@ -121,7 +122,7 @@ flowchart LR
 |---|---|---|---|---|
 | Azure Retail Prices API | `https://prices.azure.com/api/retail/prices` (`api-version=2023-01-01-preview`, OData `$filter`, 1,000 items per page) | Microsoft APIs Terms of Use; not redistributed ([DATA_LICENSE.md](DATA_LICENSE.md)) | Microsoft reprices continuously (effective dates are mostly month starts); pulled **daily** | No history API: history is the pipeline's own daily snapshots plus 5 Internet Archive captures (Jun 2024 - Feb 2026) of page 1 of Spain Central only. List prices only (no EA/MCA discounts). Reservation prices are per term |
 | Microsoft 365 roadmap | `https://www.microsoft.com/releasecommunications/api/v1/m365` (RSS: `/api/v2/m365/rss`) | Microsoft Terms of Use; counts and IDs only on the site | Edited most days (RSS `ttl` 1440 min); pulled **daily** | Features are removed some time after launch; archived history is 7 captures (Feb 2025 - Jan 2026) with multi-month gaps, so slippage between captures is aggregated over those gaps |
-| GitHub REST API | `api.github.com/repos/microsoft/{vscode,semantic-kernel,autogen,TypeScript}` | GitHub Terms of Service; no personal data kept | Continuous; pulled **daily**; token optional (60 -> 5,000 req/h) | Commits = default branch only, 52 weeks; PR metrics from the 300 most recently updated closed PRs; release cadence mixes release streams |
+| GitHub REST API | `api.github.com/repos/microsoft/{vscode,semantic-kernel,autogen,TypeScript}` | GitHub Terms of Service; no personal data kept | Continuous; pulled **daily**; token optional (60 -> 5,000 req/h) | Commits = default branch only, 52 weeks; PR metrics from the 300 most recently updated closed PRs; releases are filtered to each repo's main release stream by a hand-maintained seed |
 | Internet Archive | `web.archive.org/cdx/search/cdx` + `/web/<ts>id_/<url>` | Internet Archive terms; Microsoft content | Weekly in Functions; best effort daily in `refresh.yml` | CDX API often answers 503 (retried) |
 | Office / Copilot usage | - | not published | - | **Not available. Nothing in this repository estimates it.** |
 
@@ -152,10 +153,15 @@ uv run azm365 run                 # live: extract -> bronze -> silver -> DQ -> d
 uv run azm365 report --out site   # open site/index.html
 ```
 
+Anonymous GitHub access allows 60 requests an hour per IP and one run uses about 25; if the
+limit is spent, the GitHub extract stops with a "rate limit exhausted" error (exit 1) after
+prices and the roadmap have landed. Set `GITHUB_TOKEN` (read-only, public repos) or rerun after
+the reset: already-landed scopes are skipped.
+
 A run into an empty data directory on 9 October 2026 took **5 min 32 s** on a laptop: 48,999
 price items over 5 scopes (27 s), 1,902 roadmap features (3 s), 4 repositories (21 s), 12
 Internet Archive captures (3 min 22 s, mostly 503 retries), then silver, 18 DQ checks and
-`dbt build` (PASS=100). The lake was 10 MB. Running it again the same day lands nothing.
+`dbt build` (PASS=104 since the review fixes: 24 models, 3 seeds, 77 tests). The lake was 10 MB. Running it again the same day lands nothing.
 
 Offline, on the **simulated** fixtures (two fake days, labelled SIMULATED everywhere):
 
@@ -236,6 +242,10 @@ yet.
   `terraform apply`, Function deployment or ADF run has happened. Flex Consumption specifics
   (identity-based `AzureWebJobsStorage`, VNet outbound via default outbound access) follow the
   documentation but are untested.
+* **Transform over HTTP is time-boxed.** ADF's Azure Function activity and the Functions
+  HTTP front end both give up after 230 seconds. The transform took 98 s on the 9 October
+  2026 lake (22 snapshots); as history accumulates it will need moving to a Durable
+  Functions orchestration or an ADF-polled async pattern.
 * **History is short and uneven.** Price history before the first live run covers only one
   1,000-item page of one region; roadmap history is 7 archived captures months apart. Each
   daily run adds one complete snapshot, and only if the cached lake survives (see runbook).
@@ -245,8 +255,9 @@ yet.
 * **Copilot features** are identified by the word "Copilot" in the title or product tags, so
   features that use Copilot without saying so are missed.
 * **GitHub metrics** are samples: 52 weeks of default-branch commits, the 300 most recently
-  updated closed PRs, the first 100 releases; release streams within a repository are mixed
-  (see [verification](docs/verification.md)).
+  updated closed PRs, the first 100 releases. Repositories that publish several artefacts are reduced to one
+  release stream by the hand-maintained seed `dbt/seeds/repo_release_streams.csv`; a new
+  stream or tag scheme needs adding there by hand (see [verification](docs/verification.md)).
 * **Fabric target** is compile-only. A Synapse serverless target was not added: serverless SQL
   pools cannot materialise tables, and dbt-synapse is built for dedicated pools.
 

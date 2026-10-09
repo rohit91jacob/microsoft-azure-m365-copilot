@@ -10,6 +10,11 @@ uv run azm365 run
 uv run python scripts/verify_published.py --json verify.json
 ```
 
+An independent review repeated this on the same UTC day from a second empty data directory
+(prices and roadmap extract, GitHub after an anonymous rate-limit reset, Internet Archive on
+the third attempt because the CDX API timed out twice) and got the same counts and the same
+verification results, plus the corrected mart tags.
+
 Summary of that run (all checks were executed; nothing was filtered out):
 
 | # | Our output | Published elsewhere | Result |
@@ -20,20 +25,22 @@ Summary of that run (all checks were executed; nothing was filtered out):
 | 4 | Functions free grants implied by the meters' tier boundaries | Text of the Functions pricing page (fetched 9 Oct 2026): "Consumption plan pricing includes a monthly free grant of 1 million requests and 400,000 GB-s"; "Flex consumption plan pricing includes a monthly free grant of 250,000 executions and 100,000 GB-s" | **Agree**: Consumption *Standard Execution Time* tier starts at 400,000 GB-s and *Standard Total Executions* at 100,000 units of 10 (= 1,000,000); Flex *On Demand Execution Time* at 100,000 GB-s and *On Demand Total Executions* at 25,000 units of 10 (= 250,000) |
 | 5 | D2s v5 Linux, East US | Linux VM pricing page / calculator | USD 0.096 per hour in both |
 | 6 | Roadmap snapshot from the JSON feed: 1,902 features (746 In development, 236 Rolling out, 911 Launched, 9 Cancelled) | The official roadmap RSS feed ([`/api/v2/m365/rss`](https://www.microsoft.com/releasecommunications/api/v2/m365/rss)), fetched about an hour later | **1,902 / 1,902** feature IDs in both feeds, none in only one; status agrees for 1,902 / 1,902; GA month ("GA date: November CY2026" in the RSS description) agrees for 1,902 / 1,902 |
-| 7 | Latest stable `vX.Y.Z` release of microsoft/TypeScript from the GitHub API: `v7.0.2` | npm: `typescript@latest` = 7.0.2 ([registry.npmjs.org/typescript/latest](https://registry.npmjs.org/typescript/latest)) | **Agree**, with a caveat (below) |
-| 8 | Latest stable Python release of microsoft/semantic-kernel: `python-1.45.0` | PyPI: `semantic-kernel` 1.45.0 ([pypi.org/project/semantic-kernel](https://pypi.org/project/semantic-kernel/)) | **Agree** |
+| 7 | Latest stable `vX.Y.Z` release of microsoft/TypeScript from the GitHub API, and `mart_repo_summary.latest_release_tag`: both `v7.0.2` | npm: `typescript@latest` = 7.0.2 ([registry.npmjs.org/typescript/latest](https://registry.npmjs.org/typescript/latest)) | **Agree** (the mart disagreed before the release-stream fix below) |
+| 8 | Latest stable Python release of microsoft/semantic-kernel, and the mart's latest tag: both `python-1.45.0` | PyPI: `semantic-kernel` 1.45.0 ([pypi.org/project/semantic-kernel](https://pypi.org/project/semantic-kernel/)) | **Agree** |
 | 9 | Latest stable release of microsoft/vscode: `1.141.0` | Release notes page [code.visualstudio.com/updates](https://code.visualstudio.com/updates): "Visual Studio Code 1.141" | **Agree** |
 
 ## Mismatches and caveats found
 
-* **`mart_repo_summary.latest_release_tag` is wrong for TypeScript.** The most recent release
-  in microsoft/TypeScript is `vscode-typescript/v1.0.1` (1 Oct 2026), a release of a different
-  artefact published from the same repository. The mart takes the newest non-prerelease of
-  *any* stream, so it reports that tag; the compiler's own latest release (`v7.0.2`, matching
-  npm) is only found when filtering tags to `vX.Y.Z`. semantic-kernel has the same shape
-  (`dotnet-*` and `python-*` streams). `releases_365d` and `median_days_between_releases`
-  therefore mix streams. This is a known limitation, not fixed: release streams are
-  repository-specific and would need a per-repo tag pattern in `config/sources.yml`.
+* **`mart_repo_summary.latest_release_tag` was wrong for TypeScript (found, then fixed).** The
+  most recent release in microsoft/TypeScript is `vscode-typescript/v1.0.1` (1 Oct 2026), a
+  release of a different artefact published from the same repository, and the first version
+  of the mart reported it (and `dotnet-1.81.0` for semantic-kernel). The mart now keeps only
+  each repository's main release stream, listed in the seed `dbt/seeds/repo_release_streams.csv`
+  (tag = prefix followed by a digit: TypeScript `v`, semantic-kernel `python-`, autogen
+  `python-v`, vscode no prefix); `releases_365d` and `median_days_between_releases` use the same
+  stream. After the fix the mart reports `v7.0.2` and `python-1.45.0`, which rows 7-8 now check
+  directly. The stream list is hand-maintained: a repository that changes its tag scheme needs
+  a seed edit.
 * **Reservation prices are per term, not per hour.** The Retail Prices API reports reservation
   `retailPrice` as the total for the term while `unitOfMeasure` still says `1 Hour` (D2s v5
   East US: USD 519 for 1 year, USD 997 for 3 years). The checks above use pay-as-you-go
@@ -61,7 +68,8 @@ Summary of that run (all checks were executed; nothing was filtered out):
 
 * 18 silver data-quality checks (`src/azm365/quality.py`): 0 error-level and 0 warning-level
   failures on the 9 October 2026 data.
-* `dbt build`: 24 models, 2 seeds, 74 data tests - PASS=100, WARN=0, ERROR=0 on the same data.
+* `dbt build`: 24 models, 3 seeds, 77 data tests - PASS=104, WARN=0, ERROR=0 on the same data
+  (PASS=100 before the review added the `repo_release_streams` seed and its 3 tests).
 * `tests/e2e/test_idempotency.py`: a same-day rerun lands nothing, rebuilds nothing and
   produces byte-identical bronze and identical marts; a `--force` re-fetch and a full silver
   rebuild reproduce the same gold.

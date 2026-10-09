@@ -35,6 +35,11 @@ env:
   AZM365_LOG_FORMAT: json
   GITHUB_TOKEN: ${{ secrets.GH_API_TOKEN || github.token }}
 
+defaults:
+  run:
+    # bash -eo pipefail: a failing command piped into tee/tail must fail the step.
+    shell: bash
+
 jobs:
   build:
     name: refresh lake + build site

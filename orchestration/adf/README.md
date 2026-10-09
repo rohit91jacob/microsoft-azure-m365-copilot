@@ -13,5 +13,9 @@ idempotent per UTC day), and ADF only gates and runs the transform:
 3. `Transform` - Azure Function activity, `POST /api/transform` with the function key that ADF
    reads from Key Vault. Non-2xx responses fail the activity (422 = DQ gate, 500 = dbt).
 
+The Azure Function activity waits at most 230 seconds for the response; the transform took
+98 s on the 9 October 2026 lake, so a much larger history would need a Durable Functions
+(async HTTP) variant.
+
 Locally, `azm365 run --skip-extract` executes the same transform. The JSON is validated by
 `tests/unit/test_orchestration.py`; it has not been deployed to a real data factory.

@@ -125,19 +125,19 @@ Grain: (snapshot, feature, tag_type, tag_name). `tag_type` is `product`, `platfo
 | Mart | Grain | Key columns |
 |---|---|---|
 | mart_repo_weekly_throughput | repo x week (latest snapshot) | commits, merged PRs, bot-authored merged PRs, median hours to merge, releases; `pr_counts_complete` is false for weeks before the PR sample window |
-| mart_repo_summary | repo | stars, forks, open issues, commits 52w/12w, PR window length, merged PRs and median hours to merge in the window, bot share, stable releases in 365 days, median days between releases, latest release (newest stable release of *any* stream; see verification caveat) |
+| mart_repo_summary | repo | stars, forks, open issues, commits 52w/12w, PR window length, merged PRs and median hours to merge in the window, bot share, stable releases in 365 days, median days between releases, latest release (newest stable release of the repo's main release stream, from seed `repo_release_streams`: TypeScript `v*`, semantic-kernel `python-*`, autogen `python-v*`, vscode `1.*`); release counts and gaps use the same stream |
 
 ## Data-quality gate (silver -> gold)
 
 18 checks in `src/azm365/quality.py`; error-level failures stop the run with exit code 3
-before dbt, warnings are recorded. dbt adds 74 data tests on sources, staging, intermediate and
+before dbt, warnings are recorded. dbt adds 77 data tests on sources, staging, intermediate and
 marts (uniqueness, not-null, accepted values, non-negative, invariants such as
 `cheapest <= median <= priciest` and `changed = increases + decreases`); a failing test fails
 `dbt build` (exit code 4) and gold is not published.
 
 | Check | Table | Severity |
 |---|---|---|
-| prices_not_empty, prices_key_unique, prices_non_negative, prices_required_fields, prices_currency_usd | prices | error |
+| prices_not_empty (every live price snapshot in the bronze manifests produced silver rows), prices_key_unique, prices_non_negative, prices_required_fields, prices_currency_usd | prices | error |
 | prices_price_type_known, prices_complete_scope_not_truncated, prices_effective_date_sane | prices | warn |
 | roadmap_feature_unique, roadmap_live_feed_complete (>= 500 features in a real live pull), roadmap_title_present | roadmap_features | error |
 | roadmap_status_known, roadmap_ga_label_parsed | roadmap_features | warn |
