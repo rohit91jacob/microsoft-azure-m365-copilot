@@ -44,7 +44,7 @@ dev = [
   "pytest>=9,<10",
   "pytest-cov>=7,<8",
   "responses>=0.25,<1",
-  "ruff>=0.16,<0.17",
+  "ruff>=0.16,<0.18",
   "pre-commit>=4,<5",
 ]
 # Fabric Warehouse adapter: only used to *compile* the dbt project against T-SQL in CI.
